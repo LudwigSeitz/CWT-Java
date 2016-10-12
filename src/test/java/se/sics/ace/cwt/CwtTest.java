@@ -119,7 +119,7 @@ public class CwtTest {
         
         
                
-        claims = new HashMap<String, CBORObject>();
+        claims = new HashMap<>();
         claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
         claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
         claims.put("sub", CBORObject.FromObject("erikw"));
@@ -152,7 +152,7 @@ public class CwtTest {
         
         CWT cwt = new CWT(claims);
         
-        Sign1Message msg = (Sign1Message)cwt.encode(MessageTag.Sign1, ctx);
+        CBORObject msg = cwt.encode(ctx);
         
         byte[] rawCWT = msg.EncodeToBytes();
         
@@ -173,7 +173,7 @@ public class CwtTest {
          CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
          CWT cwt = new CWT(claims);
          
-         Encrypt0Message msg = (Encrypt0Message)cwt.encode(MessageTag.Encrypt0, ctx);
+         CBORObject msg = cwt.encode(ctx);
          
          byte[] rawCWT = msg.EncodeToBytes();
          
@@ -193,7 +193,7 @@ public class CwtTest {
           CwtCryptoCtx ctx = CwtCryptoCtx.mac0(key256, AlgorithmID.HMAC_SHA_256_64.AsCBOR());
           CWT cwt = new CWT(claims);
           
-         MAC0Message msg = (MAC0Message)cwt.encode(MessageTag.MAC0, ctx);
+         CBORObject msg = cwt.encode(ctx);
           
           byte[] rawCWT = msg.EncodeToBytes();
           
@@ -218,7 +218,7 @@ public class CwtTest {
         		   Collections.singletonList(me), AlgorithmID.ECDSA_256.AsCBOR());
            CWT cwt = new CWT(claims);
            
-           SignMessage msg = (SignMessage)cwt.encode(MessageTag.Sign, ctx);
+           CBORObject msg = cwt.encode(ctx);
            
            CwtCryptoCtx ctx2 = CwtCryptoCtx.signVerify(cnKeyPublic, AlgorithmID.ECDSA_256.AsCBOR());  
            byte[] rawCWT = msg.EncodeToBytes();
@@ -247,7 +247,7 @@ public class CwtTest {
             		Collections.singletonList(me), AlgorithmID.AES_CCM_16_64_128.AsCBOR());  
             CWT cwt = new CWT(claims);
             
-            EncryptMessage msg = (EncryptMessage)cwt.encode(MessageTag.Encrypt, ctx);
+            CBORObject msg = cwt.encode(ctx);
             
             CWT cwt2 = CWT.processCOSE(msg.EncodeToBytes(), ctx);
             
@@ -273,7 +273,7 @@ public class CwtTest {
             		 Collections.singletonList(me), AlgorithmID.HMAC_SHA_256.AsCBOR());  
              CWT cwt = new CWT(claims);
              
-             MACMessage msg = (MACMessage)cwt.encode(MessageTag.MAC, ctx);
+             CBORObject msg = cwt.encode(ctx);
              
              CWT cwt2 = CWT.processCOSE(msg.EncodeToBytes(), ctx);
              

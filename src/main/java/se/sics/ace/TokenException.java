@@ -13,28 +13,27 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package se.sics.ace.cwt;
+package se.sics.ace;
 
 /**
- * Exception for errors in the processing of CWTs.
+ * Exceptions related to the /token endpoint of the AS.
  * 
  * @author Ludwig Seitz
  *
  */
-public class CWTException extends Exception {
-
+public class TokenException extends Exception {
+	
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 607025994470252702L;
+	private static final long serialVersionUID = 3140706692045141425L;
 
 	/**
 	 * Constructor.
 	 * 
 	 * @param msg  the error message
 	 */
-	public CWTException(String msg) {
+	public TokenException(String msg) {
 		super(msg);
 	}
-
 }

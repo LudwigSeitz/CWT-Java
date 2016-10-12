@@ -15,6 +15,12 @@
  *******************************************************************************/
 package se.sics.ace;
 
+/**
+ * Constants for use with the ACE framework.
+ * 
+ * @author Ludwig Seitz
+ *
+ */
 public class Constants {
 	
 	/** 
@@ -37,19 +43,20 @@ public class Constants {
 	public static final int ERROR_DESCRIPTION = 15; //3
 	public static final int ERROR_URI = 16; //3
 	public static final int GRANT_TYPE = 17; // Major type 0 (uint)
-	public static final int ACCESS_TOKEN = 18; // 3
+	public static final int ACCESS_TOKEN = 18; // 
 	public static final int TOKEN_TYPE = 19; // 0
 	public static final int EXPIRES_IN = 20; // 0
 	public static final int USERNAME = 21; //3
 	public static final int PASSWORD = 22; //3
 	public static final int REFRESH_TOKEN = 23; //3
-	public static final int ALG = 24; //3
-	public static final int CNF = 25; // Major type 5 (map)
-	public static final int PROFILE = 26; //0
-	public static final int ACTIVE = 27;
-	public static final int CLIENT_TOKEN = 28;
-	public static final int RS_CNF = 29;
-
+	public static final int CNF = 24; // Major type 5 (map)
+	public static final int PROFILE = 25; //0
+	public static final int TOKEN = 26; // 3
+	public static final int TOKEN_TYPE_HINT = 27; //3 
+	public static final int ACTIVE = 28; // boolean
+	public static final int CLIENT_TOKEN = 29; //5
+	public static final int RS_CNF = 30; //5
+	
 	/**
 	 * Array of String values for the abbreviations
 	 */
@@ -70,16 +77,16 @@ public class Constants {
 	/**
 	 * ACE-OAUTH-AUTHZ /token parameters
 	 */
-	public static final int[] TOKEN = {CLIENT_ID, CLIENT_SECRET, AUD, 
+	public static final int[] TOKEN_PAR = {CLIENT_ID, CLIENT_SECRET, AUD, 
 		RESPONSE_TYPE, REDIRECT_URI, SCOPE, STATE, CODE, ERROR_DESCRIPTION, 
 		ERROR_URI, GRANT_TYPE, ACCESS_TOKEN, TOKEN_TYPE, EXPIRES_IN, USERNAME,
-		PASSWORD, REFRESH_TOKEN, ALG, CNF, PROFILE};
+		PASSWORD, REFRESH_TOKEN, CNF, PROFILE};
 
    /**
     * ACE-OAUTH-AUTHZ /introspect parameters
     */
-	public static final int[] INTROSPECT = {ACTIVE, USERNAME, CLIENT_ID, SCOPE, 
-		TOKEN_TYPE, EXP, IAT, NBF, SUB, AUD, ISS, CTI, ALG, CNF, CLIENT_TOKEN,
+	public static final int[] INTROSPECT_PAR = {ACTIVE, USERNAME, CLIENT_ID, SCOPE, 
+		TOKEN_TYPE, EXP, IAT, NBF, SUB, AUD, ISS, CTI, CNF, CLIENT_TOKEN,
 		RS_CNF};
 	
 	

@@ -21,6 +21,7 @@ import java.util.List;
 
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.MessageTag;
 import COSE.Recipient;
 import COSE.Signer;
 
@@ -35,6 +36,11 @@ import COSE.Signer;
  */
 public class CwtCryptoCtx {
 
+    /**
+     * What kind of COSE message does this context allow to create
+     */
+    private MessageTag what;
+    
 	private List<Signer> signers = Collections.emptyList();
 	
 	private CBORObject privatekey = null;
@@ -47,25 +53,32 @@ public class CwtCryptoCtx {
 	
 	private CBORObject alg = null;
 	
-	protected CwtCryptoCtx(byte[] key, CBORObject alg) {
+	protected CwtCryptoCtx(MessageTag what, byte[] key, CBORObject alg) {
+	    this.what = what;
 		this.rawSymmetricKey = key;
 		this.alg = alg;
 	}
 	
-	protected CwtCryptoCtx(CBORObject publicKey, CBORObject privateKey, CBORObject alg) {
+	protected CwtCryptoCtx(MessageTag what, CBORObject publicKey, 
+	        CBORObject privateKey, CBORObject alg) {
+	    this.what = what;
 		this.publicKey = publicKey;
 		this.privatekey = privateKey;
 		this.alg = alg;
 	}
 
-	protected CwtCryptoCtx(List<Recipient> recipients, CBORObject alg) {
+	protected CwtCryptoCtx(MessageTag what, List<Recipient> recipients, 
+	        CBORObject alg) {
+	    this.what = what;
 		this.recipients = new ArrayList<>();
 		this.recipients.addAll(recipients);
 		this.alg = alg;
 	}
 
 	
-	protected CwtCryptoCtx(List<Signer> signers, CBORObject alg, boolean sign) {
+	protected CwtCryptoCtx(MessageTag what, List<Signer> signers, 
+	        CBORObject alg, boolean sign) {
+	    this.what = what;
 		this.signers = new ArrayList<>();
 		this.signers.addAll(signers);
 		this.alg = alg;
@@ -82,7 +95,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */	
 	public static CwtCryptoCtx encrypt(List<Recipient> recipients, CBORObject alg) {
-		return new CwtCryptoCtx(recipients, alg);
+		return new CwtCryptoCtx(MessageTag.Encrypt, recipients, alg);
 	}
 
 	/**
@@ -94,7 +107,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx encrypt0(byte[] rawSymmetrickey, CBORObject alg) {
-		return new CwtCryptoCtx(rawSymmetrickey, alg);
+		return new CwtCryptoCtx(MessageTag.Encrypt0, rawSymmetrickey, alg);
 	}
 	
 	/**
@@ -105,7 +118,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx mac(List<Recipient> recipients, CBORObject alg) {
-		return new CwtCryptoCtx(recipients, alg);
+		return new CwtCryptoCtx(MessageTag.MAC, recipients, alg);
 	}
 	
 	/**
@@ -117,7 +130,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx mac0(byte[] rawSymmetricKey, CBORObject alg) {
-		return new CwtCryptoCtx(rawSymmetricKey, alg);
+		return new CwtCryptoCtx(MessageTag.MAC0, rawSymmetricKey, alg);
 	}
 	
 	/**
@@ -128,7 +141,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx signCreate(List<Signer> signers, CBORObject alg) {
-		return new CwtCryptoCtx(signers, alg, true);
+		return new CwtCryptoCtx(MessageTag.Sign, signers, alg, true);
 	}
 	
 	
@@ -140,7 +153,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx signVerify(CBORObject publicKey, CBORObject alg) {
-		return new CwtCryptoCtx(publicKey, null, alg);
+		return new CwtCryptoCtx(MessageTag.Sign, publicKey, null, alg);
 	}
 	
 	/**
@@ -152,7 +165,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx sign1Verify(CBORObject publicKey, CBORObject alg) {
-			return new CwtCryptoCtx(publicKey, null, alg);
+			return new CwtCryptoCtx(MessageTag.Sign1, publicKey, null, alg);
 	}
 	
 	/**
@@ -164,7 +177,7 @@ public class CwtCryptoCtx {
 	 * @return  the matching context
 	 */
 	public static CwtCryptoCtx sign1Create(CBORObject privateKey, CBORObject alg) {
-		return new CwtCryptoCtx(CBORObject.Null, privateKey, alg);
+		return new CwtCryptoCtx(MessageTag.Sign1, null, privateKey, alg);
 	}
 		
 	/**
@@ -208,4 +221,11 @@ public class CwtCryptoCtx {
 	public CBORObject getPublicKey() {
 		return this.publicKey;
 	}
-}
+	
+	/**
+	 * @return  the message type
+	 */
+	public MessageTag getMessageType() {
+	    return this.what;
+	}
+}   

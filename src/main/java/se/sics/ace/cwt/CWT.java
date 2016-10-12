@@ -21,8 +21,9 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
+import se.sics.ace.AccessToken;
 import se.sics.ace.Constants;
-
+import se.sics.ace.TokenException;
 import COSE.AlgorithmID;
 import COSE.Attribute;
 import COSE.CoseException;
@@ -33,7 +34,6 @@ import COSE.KeyKeys;
 import COSE.MAC0Message;
 import COSE.MACMessage;
 import COSE.Message;
-import COSE.MessageTag;
 import COSE.Recipient;
 import COSE.Sign1Message;
 import COSE.SignMessage;
@@ -48,7 +48,7 @@ import com.upokecenter.cbor.CBORType;
  * @author Ludwig Seitz
  *
  */
-public class CWT {
+public class CWT implements AccessToken {
 
 	private Map<String, CBORObject> claims;	
 	
@@ -68,12 +68,12 @@ public class CWT {
 	 * @param ctx  the crypto context
 	 * @return  the CWT object wrapped by the COSE object
 	 * @throws CoseException 
-	 * @throws CWTException 
+	 * @throws TokenException 
  	 *
 	 * @throws Exception 
 	 */
 	public static CWT processCOSE(byte[] COSE_CWT, CwtCryptoCtx ctx) 
-			throws CoseException, CWTException, Exception {
+			throws CoseException, TokenException, Exception {
 		Message coseRaw = Message.DecodeFromBytes(COSE_CWT);
 		
 		if (coseRaw instanceof SignMessage) {
@@ -92,7 +92,7 @@ public class CWT {
 					}
 				}
 			}
-			throw new CWTException("No valid signature found");	
+			throw new TokenException("No valid signature found");	
 			
 		} else if (coseRaw instanceof Sign1Message) {
 			Sign1Message signed = (Sign1Message)coseRaw;
@@ -123,7 +123,7 @@ public class CWT {
 					}
 				}
 			}
-			throw new CWTException("No valid MAC found");
+			throw new TokenException("No valid MAC found");
 			
 		} else if (coseRaw instanceof MAC0Message) {
 			MAC0Message maced = (MAC0Message)coseRaw;
@@ -156,7 +156,7 @@ public class CWT {
 					}
 				}
 			}
-			throw new CWTException("No valid key for ciphertext found");
+			throw new TokenException("No valid key for ciphertext found");
 			
 		} else if (coseRaw instanceof Encrypt0Message) {
 			Encrypt0Message encrypted = (Encrypt0Message)coseRaw;
@@ -164,7 +164,7 @@ public class CWT {
 					CBORObject.DecodeFromBytes(encrypted.decrypt(
 							ctx.getKey()))));
 		}
-		throw new CWTException("Unknown or invalid COSE crypto wrapper");
+		throw new TokenException("Unknown or invalid COSE crypto wrapper");
 	}
 	
 	private static byte[] processDecrypt(EncryptMessage m, Recipient r) {
@@ -183,12 +183,12 @@ public class CWT {
 	 * 
 	 * @param content  the CBOR Map of claims
 	 * @return  the mapping of unabbreviated claim names to values.
-	 * @throws CWTException
+	 * @throws TokenException
 	 */
 	public static Map<String, CBORObject> parseClaims(CBORObject content) 
-				throws CWTException {
+				throws TokenException {
 		if (content.getType() != CBORType.Map) {
-			throw new CWTException("This is not a CWT");
+			throw new TokenException("This is not a CWT");
 		}
 		Map<String, CBORObject> claims = new HashMap<>();
 		for (CBORObject key : content.getKeys()) {
@@ -204,13 +204,13 @@ public class CWT {
 						claims.put(Constants.ABBREV[abbrev], 
 								content.get(key));
 					} else {
-						throw new CWTException(
+						throw new TokenException(
 								"Unknown claim abbreviation: " + abbrev);
 					}
 					break;
 					
 				default :
-					throw new CWTException(
+					throw new TokenException(
 							"Invalid key type in CWT claims map");
 			
 			}
@@ -223,6 +223,7 @@ public class CWT {
 	 * 
 	 * @return  the claims as CBOR Map.
 	 */
+	@Override
 	public CBORObject encode() {
 		CBORObject map = CBORObject.NewMap();
 		for (String key : this.claims.keySet()) {
@@ -238,16 +239,15 @@ public class CWT {
 	
 	/**
 	 * Encodes this CWT with a COSE crypto wrapper.
-	 * 
-	 * @param what  the type of COSE wrapper to add.
+	 *
 	 * @param ctx  the crypto context.
 	 * @return  the claims as CBOR Map.
 	 * @throws Exception 
 	 */
-	public Message encode(MessageTag what, CwtCryptoCtx ctx) 
+	public CBORObject encode(CwtCryptoCtx ctx) 
 			throws Exception {
 		CBORObject map = encode();
-		switch (what) {
+		switch (ctx.getMessageType()) {
 		
 		case Encrypt0:
 			Encrypt0Message coseE0 = new Encrypt0Message();
@@ -255,7 +255,7 @@ public class CWT {
 					Attribute.ProtectedAttributes);
 			coseE0.SetContent(map.EncodeToBytes());
 			coseE0.encrypt(ctx.getKey());
-			return coseE0;		
+			return coseE0.EncodeToCBORObject();		
 			
 		case Encrypt:
 			EncryptMessage coseE = new EncryptMessage();
@@ -266,7 +266,7 @@ public class CWT {
 				coseE.addRecipient(r);
 			}
 			coseE.encrypt();
-			return coseE;
+			return coseE.EncodeToCBORObject();
 			
 		case Sign1:
 			Sign1Message coseS1 = new Sign1Message();
@@ -274,7 +274,7 @@ public class CWT {
 						Attribute.ProtectedAttributes);
 			coseS1.SetContent(map.EncodeToBytes());
 			coseS1.sign(ctx.getPrivateKey());
-			return coseS1;	
+			return coseS1.EncodeToCBORObject();	
 			
 		case Sign:
 			SignMessage coseS = new SignMessage();
@@ -285,7 +285,7 @@ public class CWT {
 				coseS.AddSigner(s);
 			}
 			coseS.sign();
-			return coseS;
+			return coseS.EncodeToCBORObject();
 			
 		case MAC:
 			MACMessage coseM = new MACMessage();
@@ -296,7 +296,7 @@ public class CWT {
 				coseM.addRecipient(r);
 			}
 			coseM.Create();
-			return coseM;
+			return coseM.EncodeToCBORObject();
 			
 		case MAC0:
 			MAC0Message coseM0 = new MAC0Message();
@@ -304,10 +304,10 @@ public class CWT {
 					Attribute.ProtectedAttributes);
 			coseM0.SetContent(map.EncodeToBytes());
 			coseM0.Create(ctx.getKey());
-			return coseM0;
+			return coseM0.EncodeToCBORObject();
 			
 		default:
-			throw new CWTException("Unknown COSE wrapper type");
+			throw new TokenException("Unknown COSE wrapper type");
 			
 		}
 	}
@@ -338,6 +338,7 @@ public class CWT {
 	 * @param now  the current time in ms since January 1, 1970, 00:00:00 GMT
 	 * @return  true if the CWT is valid, false if not
 	 */
+	@Override
 	public boolean isValid(long now) {
 		//Check nbf and exp for the found match
 		CBORObject nbfO = this.claims.get("nbf");
@@ -359,6 +360,7 @@ public class CWT {
 	 * @param now  the current time in ms since January 1, 1970, 00:00:00 GMT
 	 * @return  true if the CWT is expired false if it is still valid or has no expiration date
 	 */
+	@Override
 	public boolean expired(long now) {
 		CBORObject expO = this.claims.get("exp");
 		if (expO != null && expO.AsInt64() < now) {
