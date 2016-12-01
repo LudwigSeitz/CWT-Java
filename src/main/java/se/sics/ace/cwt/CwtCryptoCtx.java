@@ -1,17 +1,33 @@
 /*******************************************************************************
- * Copyright 2016 SICS Swedish ICT AB.
+ * Copyright (c) 2016, SICS Swedish ICT AB
+ * All rights reserved.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
 package se.sics.ace.cwt;
 
@@ -22,6 +38,7 @@ import java.util.List;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.MessageTag;
+import COSE.OneKey;
 import COSE.Recipient;
 import COSE.Signer;
 
@@ -43,13 +60,13 @@ public class CwtCryptoCtx {
     
 	private List<Signer> signers = Collections.emptyList();
 	
-	private CBORObject privatekey = null;
+	private OneKey privatekey = null;
 	
 	private List<Recipient> recipients = Collections.emptyList();
 	
 	private byte[] rawSymmetricKey = null;
 
-	private CBORObject publicKey = null;
+	private OneKey publicKey = null;
 	
 	private CBORObject alg = null;
 	
@@ -59,8 +76,8 @@ public class CwtCryptoCtx {
 		this.alg = alg;
 	}
 	
-	protected CwtCryptoCtx(MessageTag what, CBORObject publicKey, 
-	        CBORObject privateKey, CBORObject alg) {
+	protected CwtCryptoCtx(MessageTag what, OneKey publicKey, 
+	        OneKey privateKey, CBORObject alg) {
 	    this.what = what;
 		this.publicKey = publicKey;
 		this.privatekey = privateKey;
@@ -152,7 +169,7 @@ public class CwtCryptoCtx {
 	 * @param alg   the signature algorithm (from AlgorithmID.*.ASCBOR())
 	 * @return  the matching context
 	 */
-	public static CwtCryptoCtx signVerify(CBORObject publicKey, CBORObject alg) {
+	public static CwtCryptoCtx signVerify(OneKey publicKey, CBORObject alg) {
 		return new CwtCryptoCtx(MessageTag.Sign, publicKey, null, alg);
 	}
 	
@@ -164,7 +181,7 @@ public class CwtCryptoCtx {
 	 * 
 	 * @return  the matching context
 	 */
-	public static CwtCryptoCtx sign1Verify(CBORObject publicKey, CBORObject alg) {
+	public static CwtCryptoCtx sign1Verify(OneKey publicKey, CBORObject alg) {
 			return new CwtCryptoCtx(MessageTag.Sign1, publicKey, null, alg);
 	}
 	
@@ -176,7 +193,7 @@ public class CwtCryptoCtx {
 	 * 
 	 * @return  the matching context
 	 */
-	public static CwtCryptoCtx sign1Create(CBORObject privateKey, CBORObject alg) {
+	public static CwtCryptoCtx sign1Create(OneKey privateKey, CBORObject alg) {
 		return new CwtCryptoCtx(MessageTag.Sign1, null, privateKey, alg);
 	}
 		
@@ -190,7 +207,7 @@ public class CwtCryptoCtx {
 	/**
 	 * @return  the private key
 	 */
-	public CBORObject getPrivateKey() {
+	public OneKey getPrivateKey() {
 		return this.privatekey;
 	}
 	
@@ -218,7 +235,7 @@ public class CwtCryptoCtx {
 	/**
 	 * @return  the public key
 	 */
-	public CBORObject getPublicKey() {
+	public OneKey getPublicKey() {
 		return this.publicKey;
 	}
 	

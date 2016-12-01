@@ -1,17 +1,33 @@
 /*******************************************************************************
- * Copyright 2016 SICS Swedish ICT AB.
+ * Copyright (c) 2016, SICS Swedish ICT AB
+ * All rights reserved.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
 package se.sics.ace.cwt;
 
@@ -23,7 +39,7 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 
 import se.sics.ace.AccessToken;
 import se.sics.ace.Constants;
-import se.sics.ace.TokenException;
+import se.sics.ace.AceException;
 import COSE.AlgorithmID;
 import COSE.Attribute;
 import COSE.CoseException;
@@ -34,6 +50,7 @@ import COSE.KeyKeys;
 import COSE.MAC0Message;
 import COSE.MACMessage;
 import COSE.Message;
+import COSE.OneKey;
 import COSE.Recipient;
 import COSE.Sign1Message;
 import COSE.SignMessage;
@@ -68,12 +85,12 @@ public class CWT implements AccessToken {
 	 * @param ctx  the crypto context
 	 * @return  the CWT object wrapped by the COSE object
 	 * @throws CoseException 
-	 * @throws TokenException 
+	 * @throws AceException 
  	 *
 	 * @throws Exception 
 	 */
 	public static CWT processCOSE(byte[] COSE_CWT, CwtCryptoCtx ctx) 
-			throws CoseException, TokenException, Exception {
+			throws CoseException, AceException, Exception {
 		Message coseRaw = Message.DecodeFromBytes(COSE_CWT);
 		
 		if (coseRaw instanceof SignMessage) {
@@ -92,7 +109,7 @@ public class CWT implements AccessToken {
 					}
 				}
 			}
-			throw new TokenException("No valid signature found");	
+			throw new AceException("No valid signature found");	
 			
 		} else if (coseRaw instanceof Sign1Message) {
 			Sign1Message signed = (Sign1Message)coseRaw;
@@ -114,16 +131,17 @@ public class CWT implements AccessToken {
 					if (myKid == null || myKid.equals(
 							r.findAttribute(HeaderKeys.KID)))	{
 						if (myAlg.equals(r.findAttribute(HeaderKeys.Algorithm))) {
-							r.SetKey(key);
-							if (maced.Validate(r)) {
-								return new CWT(parseClaims(
-										CBORObject.DecodeFromBytes(maced.GetContent())));
-							}
+						    OneKey coseKey = new OneKey(key);
+						    r.SetKey(coseKey);			    
+						    if (maced.Validate(r)) {
+						        return new CWT(parseClaims(
+						                CBORObject.DecodeFromBytes(maced.GetContent())));
+						    }
 						}
 					}
 				}
 			}
-			throw new TokenException("No valid MAC found");
+			throw new AceException("No valid MAC found");
 			
 		} else if (coseRaw instanceof MAC0Message) {
 			MAC0Message maced = (MAC0Message)coseRaw;
@@ -145,7 +163,8 @@ public class CWT implements AccessToken {
 					if (myKid == null || myKid.equals(
 							r.findAttribute(HeaderKeys.KID)))	{
 						if (myAlg.equals(r.findAttribute(HeaderKeys.Algorithm))) {
-							r.SetKey(key);
+						    OneKey coseKey = new OneKey(key);
+							r.SetKey(coseKey);
 							byte[] plaintext = processDecrypt(encrypted, r);
 							if (plaintext != null) {
 								return new CWT(parseClaims(
@@ -156,7 +175,7 @@ public class CWT implements AccessToken {
 					}
 				}
 			}
-			throw new TokenException("No valid key for ciphertext found");
+			throw new AceException("No valid key for ciphertext found");
 			
 		} else if (coseRaw instanceof Encrypt0Message) {
 			Encrypt0Message encrypted = (Encrypt0Message)coseRaw;
@@ -164,15 +183,17 @@ public class CWT implements AccessToken {
 					CBORObject.DecodeFromBytes(encrypted.decrypt(
 							ctx.getKey()))));
 		}
-		throw new TokenException("Unknown or invalid COSE crypto wrapper");
+		throw new AceException("Unknown or invalid COSE crypto wrapper");
 	}
 	
 	private static byte[] processDecrypt(EncryptMessage m, Recipient r) {
 		try {
 			return m.decrypt(r);
 		} catch (CoseException e) {
+		    e.printStackTrace();
 			return null;
 		} catch (InvalidCipherTextException e) {
+		    e.printStackTrace();
 			return null;
 		}
 	}
@@ -183,12 +204,12 @@ public class CWT implements AccessToken {
 	 * 
 	 * @param content  the CBOR Map of claims
 	 * @return  the mapping of unabbreviated claim names to values.
-	 * @throws TokenException
+	 * @throws AceException
 	 */
 	public static Map<String, CBORObject> parseClaims(CBORObject content) 
-				throws TokenException {
+				throws AceException {
 		if (content.getType() != CBORType.Map) {
-			throw new TokenException("This is not a CWT");
+			throw new AceException("This is not a CWT");
 		}
 		Map<String, CBORObject> claims = new HashMap<>();
 		for (CBORObject key : content.getKeys()) {
@@ -204,13 +225,13 @@ public class CWT implements AccessToken {
 						claims.put(Constants.ABBREV[abbrev], 
 								content.get(key));
 					} else {
-						throw new TokenException(
+						throw new AceException(
 								"Unknown claim abbreviation: " + abbrev);
 					}
 					break;
 					
 				default :
-					throw new TokenException(
+					throw new AceException(
 							"Invalid key type in CWT claims map");
 			
 			}
@@ -242,17 +263,22 @@ public class CWT implements AccessToken {
 	 *
 	 * @param ctx  the crypto context.
 	 * @return  the claims as CBOR Map.
+	 * @throws CoseException 
+	 * @throws InvalidCipherTextException 
+	 * @throws IllegalStateException 
+	 * @throws AceException 
 	 * @throws Exception 
 	 */
 	public CBORObject encode(CwtCryptoCtx ctx) 
-			throws Exception {
+	        throws IllegalStateException, InvalidCipherTextException, 
+	               CoseException, AceException {
 		CBORObject map = encode();
 		switch (ctx.getMessageType()) {
 		
 		case Encrypt0:
 			Encrypt0Message coseE0 = new Encrypt0Message();
 			coseE0.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Attribute.ProtectedAttributes);
+					Attribute.PROTECTED);
 			coseE0.SetContent(map.EncodeToBytes());
 			coseE0.encrypt(ctx.getKey());
 			return coseE0.EncodeToCBORObject();		
@@ -260,18 +286,24 @@ public class CWT implements AccessToken {
 		case Encrypt:
 			EncryptMessage coseE = new EncryptMessage();
 			coseE.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Attribute.ProtectedAttributes);
+					Attribute.PROTECTED);
 			coseE.SetContent(map.EncodeToBytes());
 			for (Recipient r : ctx.getRecipients()) {
 				coseE.addRecipient(r);
 			}
-			coseE.encrypt();
+            try {
+                coseE.encrypt();
+            } catch (Exception e) {
+                //Catching Jim's general "not implemented" exception
+                //and casting it to something more useful
+               throw new CoseException(e.getMessage());
+            }
 			return coseE.EncodeToCBORObject();
 			
 		case Sign1:
 			Sign1Message coseS1 = new Sign1Message();
 			coseS1.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-						Attribute.ProtectedAttributes);
+						Attribute.PROTECTED);
 			coseS1.SetContent(map.EncodeToBytes());
 			coseS1.sign(ctx.getPrivateKey());
 			return coseS1.EncodeToCBORObject();	
@@ -279,7 +311,7 @@ public class CWT implements AccessToken {
 		case Sign:
 			SignMessage coseS = new SignMessage();
 			coseS.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Attribute.ProtectedAttributes);
+					Attribute.PROTECTED);
 			coseS.SetContent(map.EncodeToBytes());
 			for (Signer s : ctx.getSigners()) {
 				coseS.AddSigner(s);
@@ -290,24 +322,30 @@ public class CWT implements AccessToken {
 		case MAC:
 			MACMessage coseM = new MACMessage();
 			coseM.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Attribute.ProtectedAttributes);
+					Attribute.PROTECTED);
 			coseM.SetContent(map.EncodeToBytes());
 			for (Recipient r : ctx.getRecipients()) {
 				coseM.addRecipient(r);
 			}
-			coseM.Create();
+			try {
+                coseM.Create();
+            } catch (Exception e) {
+                //Catching Jim's general "not implemented" exception
+                //and casting it to something more useful 
+                throw new CoseException(e.getMessage());
+            }
 			return coseM.EncodeToCBORObject();
 			
 		case MAC0:
 			MAC0Message coseM0 = new MAC0Message();
 			coseM0.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Attribute.ProtectedAttributes);
+					Attribute.PROTECTED);
 			coseM0.SetContent(map.EncodeToBytes());
 			coseM0.Create(ctx.getKey());
 			return coseM0.EncodeToCBORObject();
 			
 		default:
-			throw new TokenException("Unknown COSE wrapper type");
+			throw new AceException("Unknown COSE wrapper type");
 			
 		}
 	}
@@ -369,5 +407,19 @@ public class CWT implements AccessToken {
 		}
 		return false;		
 	}
+	
+	@Override
+	public String toString() {
+	    return this.claims.toString();
+	}
+
+    @Override
+    public String getCti() throws AceException {
+        CBORObject cti = this.claims.get("cti");
+        if (cti == null) {
+            throw new AceException("Token has no cti");
+        }
+        return new String(cti.GetByteString());
+    }
 	
 }

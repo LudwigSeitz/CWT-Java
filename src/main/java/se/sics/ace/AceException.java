@@ -31,50 +31,25 @@
  *******************************************************************************/
 package se.sics.ace;
 
-import com.upokecenter.cbor.CBORObject;
-
 /**
- * An interface with methods that access tokens need to implement.
- *  
+ * Exceptions related to the /token endpoint of the AS.
+ * 
  * @author Ludwig Seitz
  *
  */
-public interface AccessToken {
+public class AceException extends Exception {
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3140706692045141425L;
 
 	/**
-	 * Checks if the token is expired at the given time
+	 * Constructor.
 	 * 
-	 * @param now  the time for which the expiry should be checked
-	 * 
-	 * @return  true if the token is expired, false if it is still valid
-	 * @throws AceException 
+	 * @param msg  the error message
 	 */
-	public boolean expired(long now) throws AceException;
-	
-	/**
-	 * Checks if the token is still valid (including expiration).
-	 * Note that this method may need to perform introspection.
-	 * 
-	 * @param now  the time for which validity should be checked
-	 * 
-	 * @return  true if the token is valid, false if it is invalid
-	 * @throws AceException 
-	 */
-	public boolean isValid(long now) throws AceException;
-	
-	
-	/**
-	 * Encodes this Access Token as a CBOR Object.
-	 * 
-	 * @return  the encoding of the token.
-	 */
-	public CBORObject encode();
-	
-	/**
-	 * @return  the string representation of the cti by Base64 encoding it
-	 * 
-	 * @throws AceException  if the token has no cti
-	 */
-	public String getCti() throws AceException;
-	
+	public AceException(String msg) {
+		super(msg);
+	}
 }

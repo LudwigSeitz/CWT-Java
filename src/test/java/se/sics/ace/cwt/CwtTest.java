@@ -1,17 +1,33 @@
 /*******************************************************************************
- * Copyright 2016 SICS Swedish ICT AB.
+ * Copyright (c) 2016, SICS Swedish ICT AB
+ * All rights reserved.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
 package se.sics.ace.cwt;
 
@@ -19,38 +35,21 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bouncycastle.asn1.nist.NISTNamedCurves;
-import org.bouncycastle.asn1.x9.X9ECParameters;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import se.sics.ace.cwt.CWT;
-import se.sics.ace.cwt.CwtCryptoCtx;
+import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
-import COSE.Encrypt0Message;
-import COSE.EncryptMessage;
+import COSE.CoseException;
+import COSE.OneKey;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
-import COSE.MAC0Message;
-import COSE.MACMessage;
-import COSE.MessageTag;
 import COSE.Recipient;
-import COSE.Sign1Message;
-import COSE.SignMessage;
 import COSE.Signer;
-
-import com.upokecenter.cbor.CBORObject;
 
 /**
  * Tests of CWT code
@@ -60,11 +59,9 @@ import com.upokecenter.cbor.CBORObject;
  */
 public class CwtTest {
 	
-    static CBORObject cnKeyPublic;
-    static CBORObject cnKeyPublicCompressed;
-    static CBORObject cnKeyPrivate;
-    static ECPublicKeyParameters keyPublic;
-    static ECPrivateKeyParameters keyPrivate;
+    static OneKey publicKey;
+    static OneKey privateKey;
+
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
 
@@ -78,47 +75,14 @@ public class CwtTest {
     
     /**
      * Set up tests.
+     * @throws CoseException 
      */
     @BeforeClass
-    public static void setUpClass() {
-    
-        X9ECParameters p = NISTNamedCurves.getByName("P-256");
-        
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), p.getG(), p.getN(), p.getH());
-        ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam = new ECKeyGenerationParameters(parameters, null);
-        pGen.init(genParam);
-        
-        AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
-        
-        keyPublic = (ECPublicKeyParameters) p1.getPublic();
-        keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
-        
-        byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
-        byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-        byte[] rgbD = keyPrivate.getD().toByteArray();
+    public static void setUp() throws CoseException {
 
-        cnKeyPublic = CBORObject.NewMap();
-        cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        
-        cnKeyPublicCompressed = CBORObject.NewMap();
-        cnKeyPublicCompressed.Add(KeyKeys.KeyType.AsCBOR(), 
-        			KeyKeys.KeyType_EC2);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Curve.AsCBOR(), 
-        			KeyKeys.EC2_P256);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        publicKey = privateKey.PublicKey();
 
-        cnKeyPrivate = CBORObject.NewMap();
-        cnKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
-        
-        
-               
         claims = new HashMap<>();
         claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
         claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
@@ -128,7 +92,8 @@ public class CwtTest {
         claims.put("iat", CBORObject.FromObject(1443944944));
         byte[] cti = {0x0B, 0x71};
         claims.put("cti", CBORObject.FromObject(cti));
-        claims.put("cks", cnKeyPublic);
+        claims.put("cks", 
+                CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
         claims.put("scope", CBORObject.FromObject(
         		"r+/s/light rwx+/a/led w+/dtls"));
     }
@@ -148,15 +113,14 @@ public class CwtTest {
         System.out.println("Round Trip Sign1");
         
         CBORObject alg = AlgorithmID.ECDSA_256.AsCBOR();
-        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(cnKeyPrivate, alg);    
+        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(privateKey, alg);    
         
         CWT cwt = new CWT(claims);
         
         CBORObject msg = cwt.encode(ctx);
         
         byte[] rawCWT = msg.EncodeToBytes();
-        
-        ctx = CwtCryptoCtx.sign1Verify(cnKeyPublic, alg);
+        ctx = CwtCryptoCtx.sign1Verify(publicKey, alg);
         CWT cwt2 = CWT.processCOSE(rawCWT, ctx);
         
         for (String key : claims.keySet()) {
@@ -211,16 +175,16 @@ public class CwtTest {
        public void testRoundTripSign() throws Exception {
            System.out.println("Round Trip Sign");
            Signer me = new Signer();
-           me.setKey(cnKeyPrivate);
+           me.setKey(privateKey);
            me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.ECDSA_256.AsCBOR(), 
-        		   Attribute.ProtectedAttributes);
+        		   Attribute.PROTECTED);
            CwtCryptoCtx ctx = CwtCryptoCtx.signCreate(
         		   Collections.singletonList(me), AlgorithmID.ECDSA_256.AsCBOR());
            CWT cwt = new CWT(claims);
            
            CBORObject msg = cwt.encode(ctx);
            
-           CwtCryptoCtx ctx2 = CwtCryptoCtx.signVerify(cnKeyPublic, AlgorithmID.ECDSA_256.AsCBOR());  
+           CwtCryptoCtx ctx2 = CwtCryptoCtx.signVerify(publicKey, AlgorithmID.ECDSA_256.AsCBOR());  
            byte[] rawCWT = msg.EncodeToBytes();
           
            CWT cwt2 = CWT.processCOSE(rawCWT, ctx2);
@@ -238,11 +202,12 @@ public class CwtTest {
             System.out.println("Round Trip Encrypt");
             Recipient me = new Recipient();  
             me.addAttribute(HeaderKeys.Algorithm, 
-           		 AlgorithmID.Direct.AsCBOR(), Attribute.UnprotectedAttributes);
+           		 AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
             CBORObject ckey256 = CBORObject.NewMap();
             ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
             ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
-            me.SetKey(ckey256); 
+            OneKey cborKey = new OneKey(ckey256);
+            me.SetKey(cborKey); 
             CwtCryptoCtx ctx = CwtCryptoCtx.encrypt(
             		Collections.singletonList(me), AlgorithmID.AES_CCM_16_64_128.AsCBOR());  
             CWT cwt = new CWT(claims);
@@ -264,11 +229,12 @@ public class CwtTest {
              System.out.println("Round Trip MAC");
              Recipient me = new Recipient();  
              me.addAttribute(HeaderKeys.Algorithm, 
-            		 AlgorithmID.Direct.AsCBOR(), Attribute.UnprotectedAttributes);
+            		 AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
              CBORObject ckey256 = CBORObject.NewMap();
              ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
              ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
-             me.SetKey(ckey256); 
+             OneKey cborKey = new OneKey(ckey256);
+             me.SetKey(cborKey); 
              CwtCryptoCtx ctx = CwtCryptoCtx.mac (
             		 Collections.singletonList(me), AlgorithmID.HMAC_SHA_256.AsCBOR());  
              CWT cwt = new CWT(claims);
@@ -311,5 +277,4 @@ public class CwtTest {
         	   assert(cwt.expired(late));
         	   assert(!cwt.expired(now));        	 
            }
-
 }
